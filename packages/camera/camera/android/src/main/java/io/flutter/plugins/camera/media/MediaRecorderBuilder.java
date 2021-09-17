@@ -6,6 +6,8 @@ package io.flutter.plugins.camera.media;
 
 import android.media.CamcorderProfile;
 import android.media.MediaRecorder;
+import io.flutter.plugins.camera.CameraProperties;
+import android.util.Size;
 import androidx.annotation.NonNull;
 import java.io.IOException;
 
@@ -18,22 +20,25 @@ public class MediaRecorderBuilder {
 
   private final String outputFilePath;
   private final CamcorderProfile recordingProfile;
+  private final CameraProperties cameraProperties;
   private final MediaRecorderFactory recorderFactory;
 
   private boolean enableAudio;
   private int mediaOrientation;
 
   public MediaRecorderBuilder(
-      @NonNull CamcorderProfile recordingProfile, @NonNull String outputFilePath) {
-    this(recordingProfile, outputFilePath, new MediaRecorderFactory());
+      @NonNull CamcorderProfile recordingProfile, @NonNull String outputFilePath, @NonNull CameraProperties cameraProperties) {
+    this(recordingProfile, outputFilePath, cameraProperties, new MediaRecorderFactory());
   }
 
   MediaRecorderBuilder(
       @NonNull CamcorderProfile recordingProfile,
       @NonNull String outputFilePath,
+      @NonNull CameraProperties cameraProperties,
       MediaRecorderFactory helper) {
     this.outputFilePath = outputFilePath;
     this.recordingProfile = recordingProfile;
+    this.cameraProperties = cameraProperties;
     this.recorderFactory = helper;
   }
 
@@ -63,7 +68,9 @@ public class MediaRecorderBuilder {
     mediaRecorder.setVideoEncoder(recordingProfile.videoCodec);
     mediaRecorder.setVideoEncodingBitRate(recordingProfile.videoBitRate);
     mediaRecorder.setVideoFrameRate(recordingProfile.videoFrameRate);
-    mediaRecorder.setVideoSize(recordingProfile.videoFrameWidth, recordingProfile.videoFrameHeight);
+    Size availableSize = cameraProperties.availableSize(recordingProfile.videoFrameWidth, recordingProfile.videoFrameHeight);
+
+    mediaRecorder.setVideoSize(availableSize.getWidth(), availableSize.getHeight());
     mediaRecorder.setOutputFile(outputFilePath);
     mediaRecorder.setOrientationHint(this.mediaOrientation);
 
