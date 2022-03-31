@@ -10,6 +10,8 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import androidx.annotation.NonNull;
 import java.io.IOException;
+import io.flutter.plugins.camera.CameraProperties;
+import android.util.Size;
 
 public class MediaRecorderBuilder {
   @SuppressWarnings("deprecation")
@@ -22,28 +24,31 @@ public class MediaRecorderBuilder {
   private final String outputFilePath;
   private final CamcorderProfile camcorderProfile;
   private final EncoderProfiles encoderProfiles;
+  private final CameraProperties cameraProperties;
   private final MediaRecorderFactory recorderFactory;
 
   private boolean enableAudio;
   private int mediaOrientation;
 
   public MediaRecorderBuilder(
-      @NonNull CamcorderProfile camcorderProfile, @NonNull String outputFilePath) {
-    this(camcorderProfile, outputFilePath, new MediaRecorderFactory());
+      @NonNull CamcorderProfile camcorderProfile, @NonNull String outputFilePath, @NonNull CameraProperties cameraProperties) {
+    this(camcorderProfile, outputFilePath, cameraProperties, new MediaRecorderFactory());
   }
 
   public MediaRecorderBuilder(
-      @NonNull EncoderProfiles encoderProfiles, @NonNull String outputFilePath) {
-    this(encoderProfiles, outputFilePath, new MediaRecorderFactory());
+      @NonNull EncoderProfiles encoderProfiles, @NonNull String outputFilePath, @NonNull CameraProperties cameraProperties) {
+    this(encoderProfiles, outputFilePath, cameraProperties, new MediaRecorderFactory());
   }
 
   MediaRecorderBuilder(
       @NonNull CamcorderProfile camcorderProfile,
       @NonNull String outputFilePath,
+      @NonNull CameraProperties cameraProperties,
       MediaRecorderFactory helper) {
     this.outputFilePath = outputFilePath;
     this.camcorderProfile = camcorderProfile;
     this.encoderProfiles = null;
+    this.cameraProperties = cameraProperties;
     this.recorderFactory = helper;
   }
 
@@ -54,6 +59,7 @@ public class MediaRecorderBuilder {
     this.outputFilePath = outputFilePath;
     this.encoderProfiles = encoderProfiles;
     this.camcorderProfile = null;
+    this.cameraProperties = cameraProperties;
     this.recorderFactory = helper;
   }
 
@@ -88,8 +94,11 @@ public class MediaRecorderBuilder {
       mediaRecorder.setVideoEncoder(videoProfile.getCodec());
       mediaRecorder.setVideoEncodingBitRate(videoProfile.getBitrate());
       mediaRecorder.setVideoFrameRate(videoProfile.getFrameRate());
-      mediaRecorder.setVideoSize(videoProfile.getWidth(), videoProfile.getHeight());
-      mediaRecorder.setVideoSize(videoProfile.getWidth(), videoProfile.getHeight());
+      // mediaRecorder.setVideoSize(videoProfile.getWidth(), videoProfile.getHeight());
+      // mediaRecorder.setVideoSize(videoProfile.getWidth(), videoProfile.getHeight());
+      Size availableSize = cameraProperties.availableSize(videoProfile.getWidth(), videoProfile.getHeight());
+
+      mediaRecorder.setVideoSize(availableSize.getWidth(), availableSize.getHeight());
     } else {
       mediaRecorder.setOutputFormat(camcorderProfile.fileFormat);
       if (enableAudio) {
@@ -100,8 +109,11 @@ public class MediaRecorderBuilder {
       mediaRecorder.setVideoEncoder(camcorderProfile.videoCodec);
       mediaRecorder.setVideoEncodingBitRate(camcorderProfile.videoBitRate);
       mediaRecorder.setVideoFrameRate(camcorderProfile.videoFrameRate);
-      mediaRecorder.setVideoSize(
-          camcorderProfile.videoFrameWidth, camcorderProfile.videoFrameHeight);
+      // mediaRecorder.setVideoSize(
+      //     camcorderProfile.videoFrameWidth, camcorderProfile.videoFrameHeight);
+      Size availableSize = cameraProperties.availableSize(camcorderProfile.videoFrameWidth, camcorderProfile.videoFrameHeight);
+
+      mediaRecorder.setVideoSize(availableSize.getWidth(), availableSize.getHeight());
     }
 
     mediaRecorder.setOutputFile(outputFilePath);
