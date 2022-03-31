@@ -1,3 +1,28 @@
+## 5.2.4
+
+* Internal code cleanup for stricter analysis options.
+
+## 5.2.3
+
+* Bumps the Android dependency on `com.google.android.gms:play-services-auth` and therefore removes the need for `jetifier`.
+
+## 5.2.2
+
+* Updates Android compileSdkVersion to 31.
+* Removes dependency on `meta`.
+
+## 5.2.1
+
+ Change the placeholder of the GoogleUserCircleAvatar to a transparent image.
+
+## 5.2.0
+
+* Add `GoogleSignInAccount.serverAuthCode`. Mark `GoogleSignInAuthentication.serverAuthCode` as deprecated.
+
+## 5.1.1
+
+* Update minimum Flutter SDK to 2.5 and iOS deployment target to 9.0.
+
 ## 5.1.0
 
 * Add reAuthenticate option to signInSilently to allow re-authentication to be requested

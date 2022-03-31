@@ -1,3 +1,30 @@
+## 2.1.3
+
+* Fixes iOS crash on `EXC_BAD_ACCESS KERN_PROTECTION_FAILURE` if the map frame changes long after creation.
+
+## 2.1.2
+
+* Removes dependencies from `pubspec.yaml` that are only needed in `example/pubspec.yaml`
+* Updates Android compileSdkVersion to 31.
+* Internal code cleanup for stricter analysis options.
+
+## 2.1.1
+
+* Suppresses unchecked cast warning.
+
+## 2.1.0
+
+* Add iOS unit and UI integration test targets.
+* Provide access to Hybrid Composition on Android through the `GoogleMap` widget.
+
+## 2.0.11
+
+* Add additional marker drag events.
+
+## 2.0.10
+
+* Update minimum Flutter SDK to 2.5 and iOS deployment target to 9.0.
+
 ## 2.0.9
 
 * Fix Android `NullPointerException` caused by the `GoogleMapController` being disposed before `GoogleMap` was ready.

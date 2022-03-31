@@ -20,6 +20,7 @@ import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.OutputConfiguration;
 import android.hardware.camera2.params.SessionConfiguration;
 import android.media.CamcorderProfile;
+import android.media.EncoderProfiles;
 import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaRecorder;
@@ -35,9 +36,7 @@ import android.view.Display;
 import android.view.Surface;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.lifecycle.Lifecycle;
-import androidx.lifecycle.LifecycleObserver;
-import androidx.lifecycle.OnLifecycleEvent;
+import androidx.annotation.VisibleForTesting;
 import io.flutter.embedding.engine.systemchannels.PlatformChannel;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.plugin.common.MethodChannel;
@@ -80,10 +79,27 @@ interface ErrorCallback {
   void onError(String errorCode, String errorMessage);
 }
 
+/** A mockable wrapper for CameraDevice calls. */
+interface CameraDeviceWrapper {
+  @NonNull
+  CaptureRequest.Builder createCaptureRequest(int templateType) throws CameraAccessException;
+
+  @TargetApi(VERSION_CODES.P)
+  void createCaptureSession(SessionConfiguration config) throws CameraAccessException;
+
+  @TargetApi(VERSION_CODES.LOLLIPOP)
+  void createCaptureSession(
+      @NonNull List<Surface> outputs,
+      @NonNull CameraCaptureSession.StateCallback callback,
+      @Nullable Handler handler)
+      throws CameraAccessException;
+
+  void close();
+}
+
 class Camera
     implements CameraCaptureCallback.CameraCaptureStateListener,
-        ImageReader.OnImageAvailableListener,
-        LifecycleObserver {
+        ImageReader.OnImageAvailableListener {
   private static final String TAG = "Camera";
 
   private static final HashMap<String, Integer> supportedImageFormats;
@@ -116,7 +132,7 @@ class Camera
   /** An additional thread for running tasks that shouldn't block the UI. */
   private HandlerThread backgroundHandlerThread;
 
-  private CameraDevice cameraDevice;
+  private CameraDeviceWrapper cameraDevice;
   private CameraCaptureSession captureSession;
   private ImageReader pictureImageReader;
   private ImageReader imageStreamReader;
@@ -137,6 +153,44 @@ class Camera
   private CameraCaptureProperties captureProps;
 
   private MethodChannel.Result flutterResult;
+
+  /** A CameraDeviceWrapper implementation that forwards calls to a CameraDevice. */
+  private class DefaultCameraDeviceWrapper implements CameraDeviceWrapper {
+    private final CameraDevice cameraDevice;
+
+    private DefaultCameraDeviceWrapper(CameraDevice cameraDevice) {
+      this.cameraDevice = cameraDevice;
+    }
+
+    @NonNull
+    @Override
+    public CaptureRequest.Builder createCaptureRequest(int templateType)
+        throws CameraAccessException {
+      return cameraDevice.createCaptureRequest(templateType);
+    }
+
+    @TargetApi(VERSION_CODES.P)
+    @Override
+    public void createCaptureSession(SessionConfiguration config) throws CameraAccessException {
+      cameraDevice.createCaptureSession(config);
+    }
+
+    @TargetApi(VERSION_CODES.LOLLIPOP)
+    @SuppressWarnings("deprecation")
+    @Override
+    public void createCaptureSession(
+        @NonNull List<Surface> outputs,
+        @NonNull CameraCaptureSession.StateCallback callback,
+        @Nullable Handler handler)
+        throws CameraAccessException {
+      cameraDevice.createCaptureSession(outputs, callback, backgroundHandler);
+    }
+
+    @Override
+    public void close() {
+      cameraDevice.close();
+    }
+  }
 
   public Camera(
       final Activity activity,
@@ -202,8 +256,16 @@ class Camera
         ((SensorOrientationFeature) cameraFeatures.getSensorOrientation())
             .getLockedCaptureOrientation();
 
+    MediaRecorderBuilder mediaRecorderBuilder;
+
+    if (Build.VERSION.SDK_INT >= 31) {
+      mediaRecorderBuilder = new MediaRecorderBuilder(getRecordingProfile(), outputFilePath);
+    } else {
+      mediaRecorderBuilder = new MediaRecorderBuilder(getRecordingProfileLegacy(), outputFilePath);
+    }
+
     mediaRecorder =
-        new MediaRecorderBuilder(getRecordingProfile(), outputFilePath)
+        mediaRecorderBuilder
             .setEnableAudio(enableAudio)
             .setMediaOrientation(
                 lockedOrientation == null
@@ -255,7 +317,7 @@ class Camera
         new CameraDevice.StateCallback() {
           @Override
           public void onOpened(@NonNull CameraDevice device) {
-            cameraDevice = device;
+            cameraDevice = new DefaultCameraDeviceWrapper(device);
             try {
               startPreview();
               dartMessenger.sendCameraInitializedEvent(
@@ -275,8 +337,10 @@ class Camera
           public void onClosed(@NonNull CameraDevice camera) {
             Log.i(TAG, "open | onClosed");
 
+            // Prevents calls to methods that would otherwise result in IllegalStateException exceptions.
+            cameraDevice = null;
+            closeCaptureSession();
             dartMessenger.sendCameraClosingEvent();
-            super.onClosed(camera);
           }
 
           @Override
@@ -358,10 +422,13 @@ class Camera
     // Prepare the callback.
     CameraCaptureSession.StateCallback callback =
         new CameraCaptureSession.StateCallback() {
+          boolean captureSessionClosed = false;
+
           @Override
           public void onConfigured(@NonNull CameraCaptureSession session) {
+            Log.i(TAG, "CameraCaptureSession onConfigured");
             // Camera was already closed.
-            if (cameraDevice == null) {
+            if (cameraDevice == null || captureSessionClosed) {
               dartMessenger.sendCameraErrorEvent("The camera was closed during configuration.");
               return;
             }
@@ -376,7 +443,14 @@ class Camera
 
           @Override
           public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+            Log.i(TAG, "CameraCaptureSession onConfigureFailed");
             dartMessenger.sendCameraErrorEvent("Failed to configure camera session.");
+          }
+
+          @Override
+          public void onClosed(@NonNull CameraCaptureSession session) {
+            Log.i(TAG, "CameraCaptureSession onClosed");
+            captureSessionClosed = true;
           }
         };
 
@@ -421,10 +495,12 @@ class Camera
   // Send a repeating request to refresh  capture session.
   private void refreshPreviewCaptureSession(
       @Nullable Runnable onSuccessCallback, @NonNull ErrorCallback onErrorCallback) {
+    Log.i(TAG, "refreshPreviewCaptureSession");
+
     if (captureSession == null) {
       Log.i(
           TAG,
-          "[refreshPreviewCaptureSession] captureSession not yet initialized, "
+          "refreshPreviewCaptureSession: captureSession not yet initialized, "
               + "skipping preview capture session refresh.");
       return;
     }
@@ -439,6 +515,8 @@ class Camera
         onSuccessCallback.run();
       }
 
+    } catch (IllegalStateException e) {
+      onErrorCallback.onError("cameraAccess", "Camera is closed: " + e.getMessage());
     } catch (CameraAccessException e) {
       onErrorCallback.onError("cameraAccess", e.getMessage());
     }
@@ -562,7 +640,6 @@ class Camera
 
     try {
       captureSession.stopRepeating();
-      captureSession.abortCaptures();
       Log.i(TAG, "sending capture request");
       captureSession.capture(stillBuilder.build(), captureCallback, backgroundHandler);
     } catch (CameraAccessException e) {
@@ -576,19 +653,21 @@ class Camera
   }
 
   /** Starts a background thread and its {@link Handler}. */
-  @OnLifecycleEvent(Lifecycle.Event.ON_RESUME)
   public void startBackgroundThread() {
-    backgroundHandlerThread = new HandlerThread("CameraBackground");
+    if (backgroundHandlerThread != null) {
+      return;
+    }
+
+    backgroundHandlerThread = HandlerThreadFactory.create("CameraBackground");
     try {
       backgroundHandlerThread.start();
     } catch (IllegalThreadStateException e) {
       // Ignore exception in case the thread has already started.
     }
-    backgroundHandler = new Handler(backgroundHandlerThread.getLooper());
+    backgroundHandler = HandlerFactory.create(backgroundHandlerThread.getLooper());
   }
 
   /** Stops the background thread and its {@link Handler}. */
-  @OnLifecycleEvent(Lifecycle.Event.ON_PAUSE)
   public void stopBackgroundThread() {
     if (backgroundHandlerThread != null) {
       backgroundHandlerThread.quitSafely();
@@ -919,8 +998,12 @@ class Camera
     return cameraFeatures.getZoomLevel().getMinimumZoomLevel();
   }
 
-  /** Shortcut to get current recording profile. */
-  CamcorderProfile getRecordingProfile() {
+  /** Shortcut to get current recording profile. Legacy method provides support for SDK < 31. */
+  CamcorderProfile getRecordingProfileLegacy() {
+    return cameraFeatures.getResolution().getRecordingProfileLegacy();
+  }
+
+  EncoderProfiles getRecordingProfile() {
     return cameraFeatures.getResolution().getRecordingProfile();
   }
 
@@ -1119,5 +1202,39 @@ class Camera
     close();
     flutterTexture.release();
     getDeviceOrientationManager().stop();
+  }
+
+  /** Factory class that assists in creating a {@link HandlerThread} instance. */
+  static class HandlerThreadFactory {
+    /**
+     * Creates a new instance of the {@link HandlerThread} class.
+     *
+     * <p>This method is visible for testing purposes only and should never be used outside this *
+     * class.
+     *
+     * @param name to give to the HandlerThread.
+     * @return new instance of the {@link HandlerThread} class.
+     */
+    @VisibleForTesting
+    public static HandlerThread create(String name) {
+      return new HandlerThread(name);
+    }
+  }
+
+  /** Factory class that assists in creating a {@link Handler} instance. */
+  static class HandlerFactory {
+    /**
+     * Creates a new instance of the {@link Handler} class.
+     *
+     * <p>This method is visible for testing purposes only and should never be used outside this *
+     * class.
+     *
+     * @param looper to give to the Handler.
+     * @return new instance of the {@link Handler} class.
+     */
+    @VisibleForTesting
+    public static Handler create(Looper looper) {
+      return new Handler(looper);
+    }
   }
 }
