@@ -55,6 +55,7 @@ public class MediaRecorderBuilder {
   MediaRecorderBuilder(
       @NonNull EncoderProfiles encoderProfiles,
       @NonNull String outputFilePath,
+      @NonNull CameraProperties cameraProperties,
       MediaRecorderFactory helper) {
     this.outputFilePath = outputFilePath;
     this.encoderProfiles = encoderProfiles;
