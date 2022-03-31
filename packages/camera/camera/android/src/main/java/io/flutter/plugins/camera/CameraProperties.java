@@ -13,7 +13,9 @@ import android.util.Range;
 import android.util.Rational;
 import android.util.Size;
 import androidx.annotation.RequiresApi;
-
+import android.graphics.ImageFormat;
+import android.graphics.SurfaceTexture;
+import android.hardware.camera2.params.StreamConfigurationMap;
 /** An interface allowing access to the different characteristics of the device's camera. */
 public interface CameraProperties {
 
@@ -256,6 +258,8 @@ class CameraPropertiesImpl implements CameraProperties {
     return cameraName;
   }
 
+  Size availableSize(int width, int height);
+
   @Override
   public Range<Integer>[] getControlAutoExposureAvailableTargetFpsRanges() {
     return cameraCharacteristics.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
@@ -346,5 +350,22 @@ class CameraPropertiesImpl implements CameraProperties {
   public int[] getAvailableNoiseReductionModes() {
     return cameraCharacteristics.get(
         CameraCharacteristics.NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES);
+  }
+
+  public Size availableSize(int width, int height) {
+    StreamConfigurationMap streamConfigurationMap = this.cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+    int largestPixels = 0;
+    Size largestSize = new Size(width, height);
+    for (int i = 0; i < streamConfigurationMap.getOutputSizes(SurfaceTexture.class).length; i++) {
+      Size tempSize = streamConfigurationMap.getOutputSizes(SurfaceTexture.class)[i];
+      if (tempSize.getWidth() == width && tempSize.getHeight() == height) {
+        return new Size(width, height);
+      }
+      if (tempSize.getWidth() * tempSize.getHeight() > largestPixels) {
+        largestPixels = tempSize.getWidth() * tempSize.getHeight();
+        largestSize = tempSize;
+      }
+    }
+    return largestSize;
   }
 }
