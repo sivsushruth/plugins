@@ -1,6 +1,12 @@
-## NEXT
+## 0.2.0
+
+* Updates compileSdkVersion to 31.
+* **Breaking Change** Update guava version to latest stable: `com.google.guava:guava:31.1-android`.
+
+## 0.1.0+4
 
 * Updated Android lint settings.
+* Updated package description.
 
 ## 0.1.0+3
 

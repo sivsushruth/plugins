@@ -45,12 +45,10 @@ void main() {
     expect(
         processRunner.recordedCalls,
         orderedEquals(<ProcessCall>[
-          ProcessCall(
-              'flutter', const <String>['packages', 'get'], plugin1Dir.path),
-          ProcessCall(
-              'flutter', const <String>['packages', 'get'], plugin2Dir.path),
+          ProcessCall('flutter', const <String>['pub', 'get'], plugin1Dir.path),
           ProcessCall('dart', const <String>['analyze', '--fatal-infos'],
               plugin1Dir.path),
+          ProcessCall('flutter', const <String>['pub', 'get'], plugin2Dir.path),
           ProcessCall('dart', const <String>['analyze', '--fatal-infos'],
               plugin2Dir.path),
         ]));
@@ -64,10 +62,34 @@ void main() {
     expect(
         processRunner.recordedCalls,
         orderedEquals(<ProcessCall>[
-          ProcessCall(
-              'flutter', const <String>['packages', 'get'], plugin1Dir.path),
+          ProcessCall('flutter', const <String>['pub', 'get'], plugin1Dir.path),
           ProcessCall('dart', const <String>['analyze', '--fatal-infos'],
               plugin1Dir.path),
+        ]));
+  });
+
+  test('runs flutter pub get for non-example subpackages', () async {
+    final Directory mainPackageDir = createFakePackage('a', packagesDir);
+    final Directory otherPackages =
+        mainPackageDir.childDirectory('other_packages');
+    final Directory subpackage1 =
+        createFakePackage('subpackage1', otherPackages);
+    final Directory subpackage2 =
+        createFakePackage('subpackage2', otherPackages);
+
+    await runCapturingPrint(runner, <String>['analyze']);
+
+    expect(
+        processRunner.recordedCalls,
+        orderedEquals(<ProcessCall>[
+          ProcessCall(
+              'flutter', const <String>['pub', 'get'], mainPackageDir.path),
+          ProcessCall(
+              'flutter', const <String>['pub', 'get'], subpackage1.path),
+          ProcessCall(
+              'flutter', const <String>['pub', 'get'], subpackage2.path),
+          ProcessCall('dart', const <String>['analyze', '--fatal-infos'],
+              mainPackageDir.path),
         ]));
   });
 
@@ -80,12 +102,10 @@ void main() {
     expect(
         processRunner.recordedCalls,
         orderedEquals(<ProcessCall>[
-          ProcessCall(
-              'flutter', const <String>['packages', 'get'], plugin1Dir.path),
-          ProcessCall(
-              'flutter', const <String>['packages', 'get'], plugin2Dir.path),
+          ProcessCall('flutter', const <String>['pub', 'get'], plugin1Dir.path),
           ProcessCall('dart', const <String>['analyze', '--fatal-infos'],
               plugin1Dir.path),
+          ProcessCall('flutter', const <String>['pub', 'get'], plugin2Dir.path),
           ProcessCall('dart', const <String>['analyze', '--fatal-infos'],
               plugin2Dir.path),
         ]));
@@ -102,7 +122,7 @@ void main() {
       orderedEquals(<ProcessCall>[
         ProcessCall(
           'flutter',
-          const <String>['packages', 'get'],
+          const <String>['pub', 'get'],
           pluginDir.path,
         ),
         ProcessCall(
@@ -170,7 +190,7 @@ void main() {
           processRunner.recordedCalls,
           orderedEquals(<ProcessCall>[
             ProcessCall(
-                'flutter', const <String>['packages', 'get'], pluginDir.path),
+                'flutter', const <String>['pub', 'get'], pluginDir.path),
             ProcessCall('dart', const <String>['analyze', '--fatal-infos'],
                 pluginDir.path),
           ]));
@@ -189,7 +209,7 @@ void main() {
           processRunner.recordedCalls,
           orderedEquals(<ProcessCall>[
             ProcessCall(
-                'flutter', const <String>['packages', 'get'], pluginDir.path),
+                'flutter', const <String>['pub', 'get'], pluginDir.path),
             ProcessCall('dart', const <String>['analyze', '--fatal-infos'],
                 pluginDir.path),
           ]));
@@ -207,11 +227,11 @@ void main() {
     });
   });
 
-  test('fails if "packages get" fails', () async {
+  test('fails if "pub get" fails', () async {
     createFakePlugin('foo', packagesDir);
 
     processRunner.mockProcessesForExecutable['flutter'] = <io.Process>[
-      MockProcess(exitCode: 1) // flutter packages get
+      MockProcess(exitCode: 1) // flutter pub get
     ];
 
     Error? commandError;
@@ -253,7 +273,7 @@ void main() {
   });
 
   // Ensure that the command used to analyze flutter/plugins in the Dart repo:
-  // https://github.com/dart-lang/sdk/blob/master/tools/bots/flutter/analyze_flutter_plugins.sh
+  // https://github.com/dart-lang/sdk/blob/main/tools/bots/flutter/analyze_flutter_plugins.sh
   // continues to work.
   //
   // DO NOT remove or modify this test without a coordination plan in place to
@@ -279,7 +299,7 @@ void main() {
       orderedEquals(<ProcessCall>[
         ProcessCall(
           'flutter',
-          const <String>['packages', 'get'],
+          const <String>['pub', 'get'],
           pluginDir.path,
         ),
         ProcessCall(

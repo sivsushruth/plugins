@@ -8,11 +8,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:video_player_platform_interface/messages.dart';
 import 'package:video_player_platform_interface/method_channel_video_player.dart';
-import 'package:video_player_platform_interface/test.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
+import 'test.dart';
+
 class _ApiLogger implements TestHostVideoPlayerApi {
-  final List<String> log = [];
+  final List<String> log = <String>[];
   TextureMessage? textureMessage;
   CreateMessage? createMessage;
   PositionMessage? positionMessage;
@@ -92,10 +93,12 @@ class _ApiLogger implements TestHostVideoPlayerApi {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  // Store the initial instance before any tests change it.
+  final VideoPlayerPlatform initialInstance = VideoPlayerPlatform.instance;
+
   group('$VideoPlayerPlatform', () {
     test('$MethodChannelVideoPlayer() is the default instance', () {
-      expect(VideoPlayerPlatform.instance,
-          isInstanceOf<MethodChannelVideoPlayer>());
+      expect(initialInstance, isInstanceOf<MethodChannelVideoPlayer>());
     });
   });
 
@@ -145,7 +148,7 @@ void main() {
       expect(log.createMessage?.uri, 'someUri');
       expect(log.createMessage?.packageName, null);
       expect(log.createMessage?.formatHint, 'dash');
-      expect(log.createMessage?.httpHeaders, {});
+      expect(log.createMessage?.httpHeaders, <Object?, Object?>{});
       expect(textureId, 3);
     });
 
@@ -153,14 +156,15 @@ void main() {
       final int? textureId = await player.create(DataSource(
         sourceType: DataSourceType.network,
         uri: 'someUri',
-        httpHeaders: {'Authorization': 'Bearer token'},
+        httpHeaders: <String, String>{'Authorization': 'Bearer token'},
       ));
       expect(log.log.last, 'create');
       expect(log.createMessage?.asset, null);
       expect(log.createMessage?.uri, 'someUri');
       expect(log.createMessage?.packageName, null);
       expect(log.createMessage?.formatHint, null);
-      expect(log.createMessage?.httpHeaders, {'Authorization': 'Bearer token'});
+      expect(log.createMessage?.httpHeaders,
+          <String, String>{'Authorization': 'Bearer token'});
       expect(textureId, 3);
     });
 
@@ -235,7 +239,7 @@ void main() {
       _ambiguate(ServicesBinding.instance)
           ?.defaultBinaryMessenger
           .setMockMessageHandler(
-        "flutter.io/videoPlayer/videoEvents123",
+        'flutter.io/videoPlayer/videoEvents123',
         (ByteData? message) async {
           final MethodCall methodCall =
               const StandardMethodCodec().decodeMethodCall(message);
@@ -243,7 +247,7 @@ void main() {
             await _ambiguate(ServicesBinding.instance)
                 ?.defaultBinaryMessenger
                 .handlePlatformMessage(
-                    "flutter.io/videoPlayer/videoEvents123",
+                    'flutter.io/videoPlayer/videoEvents123',
                     const StandardMethodCodec()
                         .encodeSuccessEnvelope(<String, dynamic>{
                       'event': 'initialized',
@@ -256,7 +260,21 @@ void main() {
             await _ambiguate(ServicesBinding.instance)
                 ?.defaultBinaryMessenger
                 .handlePlatformMessage(
-                    "flutter.io/videoPlayer/videoEvents123",
+                    'flutter.io/videoPlayer/videoEvents123',
+                    const StandardMethodCodec()
+                        .encodeSuccessEnvelope(<String, dynamic>{
+                      'event': 'initialized',
+                      'duration': 98765,
+                      'width': 1920,
+                      'height': 1080,
+                      'rotationCorrection': 180,
+                    }),
+                    (ByteData? data) {});
+
+            await _ambiguate(ServicesBinding.instance)
+                ?.defaultBinaryMessenger
+                .handlePlatformMessage(
+                    'flutter.io/videoPlayer/videoEvents123',
                     const StandardMethodCodec()
                         .encodeSuccessEnvelope(<String, dynamic>{
                       'event': 'completed',
@@ -266,7 +284,7 @@ void main() {
             await _ambiguate(ServicesBinding.instance)
                 ?.defaultBinaryMessenger
                 .handlePlatformMessage(
-                    "flutter.io/videoPlayer/videoEvents123",
+                    'flutter.io/videoPlayer/videoEvents123',
                     const StandardMethodCodec()
                         .encodeSuccessEnvelope(<String, dynamic>{
                       'event': 'bufferingUpdate',
@@ -280,7 +298,7 @@ void main() {
             await _ambiguate(ServicesBinding.instance)
                 ?.defaultBinaryMessenger
                 .handlePlatformMessage(
-                    "flutter.io/videoPlayer/videoEvents123",
+                    'flutter.io/videoPlayer/videoEvents123',
                     const StandardMethodCodec()
                         .encodeSuccessEnvelope(<String, dynamic>{
                       'event': 'bufferingStart',
@@ -290,7 +308,7 @@ void main() {
             await _ambiguate(ServicesBinding.instance)
                 ?.defaultBinaryMessenger
                 .handlePlatformMessage(
-                    "flutter.io/videoPlayer/videoEvents123",
+                    'flutter.io/videoPlayer/videoEvents123',
                     const StandardMethodCodec()
                         .encodeSuccessEnvelope(<String, dynamic>{
                       'event': 'bufferingEnd',
@@ -312,6 +330,13 @@ void main() {
               eventType: VideoEventType.initialized,
               duration: const Duration(milliseconds: 98765),
               size: const Size(1920, 1080),
+              rotationCorrection: 0,
+            ),
+            VideoEvent(
+              eventType: VideoEventType.initialized,
+              duration: const Duration(milliseconds: 98765),
+              size: const Size(1920, 1080),
+              rotationCorrection: 180,
             ),
             VideoEvent(eventType: VideoEventType.completed),
             VideoEvent(

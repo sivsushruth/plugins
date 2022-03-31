@@ -3,10 +3,11 @@
 // found in the LICENSE file.
 
 import 'dart:ui' show hashValues;
+
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart';
 import 'package:json_annotation/json_annotation.dart';
-import 'enum_converters.dart';
+
 import 'billing_client_wrapper.dart';
 import 'sku_details_wrapper.dart';
 
@@ -24,10 +25,11 @@ part 'purchase_wrapper.g.dart';
 /// This wraps [`com.android.billlingclient.api.Purchase`](https://developer.android.com/reference/com/android/billingclient/api/Purchase)
 @JsonSerializable()
 @PurchaseStateConverter()
+@immutable
 class PurchaseWrapper {
   /// Creates a purchase wrapper with the given purchase details.
   @visibleForTesting
-  PurchaseWrapper({
+  const PurchaseWrapper({
     required this.orderId,
     required this.packageName,
     required this.purchaseTime,
@@ -49,19 +51,23 @@ class PurchaseWrapper {
 
   @override
   bool operator ==(Object other) {
-    if (identical(other, this)) return true;
-    if (other.runtimeType != runtimeType) return false;
-    final PurchaseWrapper typedOther = other as PurchaseWrapper;
-    return typedOther.orderId == orderId &&
-        typedOther.packageName == packageName &&
-        typedOther.purchaseTime == purchaseTime &&
-        typedOther.purchaseToken == purchaseToken &&
-        typedOther.signature == signature &&
-        typedOther.sku == sku &&
-        typedOther.isAutoRenewing == isAutoRenewing &&
-        typedOther.originalJson == originalJson &&
-        typedOther.isAcknowledged == isAcknowledged &&
-        typedOther.purchaseState == purchaseState;
+    if (identical(other, this)) {
+      return true;
+    }
+    if (other.runtimeType != runtimeType) {
+      return false;
+    }
+    return other is PurchaseWrapper &&
+        other.orderId == orderId &&
+        other.packageName == packageName &&
+        other.purchaseTime == purchaseTime &&
+        other.purchaseToken == purchaseToken &&
+        other.signature == signature &&
+        other.sku == sku &&
+        other.isAutoRenewing == isAutoRenewing &&
+        other.originalJson == originalJson &&
+        other.isAcknowledged == isAcknowledged &&
+        other.purchaseState == purchaseState;
   }
 
   @override
@@ -166,10 +172,11 @@ class PurchaseWrapper {
 // We can optionally make [PurchaseWrapper] extend or implement [PurchaseHistoryRecordWrapper].
 // For now, we keep them separated classes to be consistent with Android's BillingClient implementation.
 @JsonSerializable()
+@immutable
 class PurchaseHistoryRecordWrapper {
   /// Creates a [PurchaseHistoryRecordWrapper] with the given record details.
   @visibleForTesting
-  PurchaseHistoryRecordWrapper({
+  const PurchaseHistoryRecordWrapper({
     required this.purchaseTime,
     required this.purchaseToken,
     required this.signature,
@@ -215,16 +222,19 @@ class PurchaseHistoryRecordWrapper {
 
   @override
   bool operator ==(Object other) {
-    if (identical(other, this)) return true;
-    if (other.runtimeType != runtimeType) return false;
-    final PurchaseHistoryRecordWrapper typedOther =
-        other as PurchaseHistoryRecordWrapper;
-    return typedOther.purchaseTime == purchaseTime &&
-        typedOther.purchaseToken == purchaseToken &&
-        typedOther.signature == signature &&
-        typedOther.sku == sku &&
-        typedOther.originalJson == originalJson &&
-        typedOther.developerPayload == developerPayload;
+    if (identical(other, this)) {
+      return true;
+    }
+    if (other.runtimeType != runtimeType) {
+      return false;
+    }
+    return other is PurchaseHistoryRecordWrapper &&
+        other.purchaseTime == purchaseTime &&
+        other.purchaseToken == purchaseToken &&
+        other.signature == signature &&
+        other.sku == sku &&
+        other.originalJson == originalJson &&
+        other.developerPayload == developerPayload;
   }
 
   @override
@@ -241,9 +251,10 @@ class PurchaseHistoryRecordWrapper {
 /// Wraps [`com.android.billingclient.api.Purchase.PurchasesResult`](https://developer.android.com/reference/com/android/billingclient/api/Purchase.PurchasesResult).
 @JsonSerializable()
 @BillingResponseConverter()
+@immutable
 class PurchasesResultWrapper {
   /// Creates a [PurchasesResultWrapper] with the given purchase result details.
-  PurchasesResultWrapper(
+  const PurchasesResultWrapper(
       {required this.responseCode,
       required this.billingResult,
       required this.purchasesList});
@@ -254,12 +265,16 @@ class PurchasesResultWrapper {
 
   @override
   bool operator ==(Object other) {
-    if (identical(other, this)) return true;
-    if (other.runtimeType != runtimeType) return false;
-    final PurchasesResultWrapper typedOther = other as PurchasesResultWrapper;
-    return typedOther.responseCode == responseCode &&
-        typedOther.purchasesList == purchasesList &&
-        typedOther.billingResult == billingResult;
+    if (identical(other, this)) {
+      return true;
+    }
+    if (other.runtimeType != runtimeType) {
+      return false;
+    }
+    return other is PurchasesResultWrapper &&
+        other.responseCode == responseCode &&
+        other.purchasesList == purchasesList &&
+        other.billingResult == billingResult;
   }
 
   @override
@@ -287,9 +302,10 @@ class PurchasesResultWrapper {
 /// that contains a detailed description of the status.
 @JsonSerializable()
 @BillingResponseConverter()
+@immutable
 class PurchasesHistoryResult {
   /// Creates a [PurchasesHistoryResult] with the provided history.
-  PurchasesHistoryResult(
+  const PurchasesHistoryResult(
       {required this.billingResult, required this.purchaseHistoryRecordList});
 
   /// Factory for creating a [PurchasesHistoryResult] from a [Map] with the history result details.
@@ -298,11 +314,15 @@ class PurchasesHistoryResult {
 
   @override
   bool operator ==(Object other) {
-    if (identical(other, this)) return true;
-    if (other.runtimeType != runtimeType) return false;
-    final PurchasesHistoryResult typedOther = other as PurchasesHistoryResult;
-    return typedOther.purchaseHistoryRecordList == purchaseHistoryRecordList &&
-        typedOther.billingResult == billingResult;
+    if (identical(other, this)) {
+      return true;
+    }
+    if (other.runtimeType != runtimeType) {
+      return false;
+    }
+    return other is PurchasesHistoryResult &&
+        other.purchaseHistoryRecordList == purchaseHistoryRecordList &&
+        other.billingResult == billingResult;
   }
 
   @override
@@ -323,6 +343,7 @@ class PurchasesHistoryResult {
 /// Wraps
 /// [`BillingClient.api.Purchase.PurchaseState`](https://developer.android.com/reference/com/android/billingclient/api/Purchase.PurchaseState.html).
 /// * See also: [PurchaseWrapper].
+@JsonEnum(alwaysCreate: true)
 enum PurchaseStateWrapper {
   /// The state is unspecified.
   ///
@@ -347,4 +368,40 @@ enum PurchaseStateWrapper {
   /// [PurchaseWrapper] is still in the `pending` state in the future while calling [BillingClient.queryPurchases].
   @JsonValue(2)
   pending,
+}
+
+/// Serializer for [PurchaseStateWrapper].
+///
+/// Use these in `@JsonSerializable()` classes by annotating them with
+/// `@PurchaseStateConverter()`.
+class PurchaseStateConverter
+    implements JsonConverter<PurchaseStateWrapper, int?> {
+  /// Default const constructor.
+  const PurchaseStateConverter();
+
+  @override
+  PurchaseStateWrapper fromJson(int? json) {
+    if (json == null) {
+      return PurchaseStateWrapper.unspecified_state;
+    }
+    return $enumDecode(_$PurchaseStateWrapperEnumMap, json);
+  }
+
+  @override
+  int toJson(PurchaseStateWrapper object) =>
+      _$PurchaseStateWrapperEnumMap[object]!;
+
+  /// Converts the purchase state stored in `object` to a [PurchaseStatus].
+  ///
+  /// [PurchaseStateWrapper.unspecified_state] is mapped to [PurchaseStatus.error].
+  PurchaseStatus toPurchaseStatus(PurchaseStateWrapper object) {
+    switch (object) {
+      case PurchaseStateWrapper.pending:
+        return PurchaseStatus.pending;
+      case PurchaseStateWrapper.purchased:
+        return PurchaseStatus.purchased;
+      case PurchaseStateWrapper.unspecified_state:
+        return PurchaseStatus.error;
+    }
+  }
 }

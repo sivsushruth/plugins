@@ -12,9 +12,9 @@ import 'common/package_looping_command.dart';
 import 'common/process_runner.dart';
 import 'common/repository_package.dart';
 
-/// Lint the CocoaPod podspecs and run unit tests.
+/// Run 'gradlew lint'.
 ///
-/// See https://guides.cocoapods.org/terminal/commands.html#pod_lib_lint.
+/// See https://developer.android.com/studio/write/lint.
 class LintAndroidCommand extends PackageLoopingCommand {
   /// Creates an instance of the linter command.
   LintAndroidCommand(
@@ -32,7 +32,7 @@ class LintAndroidCommand extends PackageLoopingCommand {
 
   @override
   Future<PackageResult> runForPackage(RepositoryPackage package) async {
-    if (!pluginSupportsPlatform(kPlatformAndroid, package,
+    if (!pluginSupportsPlatform(platformAndroid, package,
         requiredMode: PlatformSupport.inline)) {
       return PackageResult.skip(
           'Plugin does not have an Android implemenatation.');
