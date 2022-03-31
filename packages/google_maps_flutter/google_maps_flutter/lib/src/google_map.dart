@@ -8,7 +8,7 @@ part of google_maps_flutter;
 ///
 /// Pass to [GoogleMap.onMapCreated] to receive a [GoogleMapController] when the
 /// map is created.
-typedef void MapCreatedCallback(GoogleMapController controller);
+typedef MapCreatedCallback = void Function(GoogleMapController controller);
 
 // This counter is used to provide a stable "constant" initialization id
 // to the buildView function, so the web implementation can use it as a
@@ -25,16 +25,57 @@ class UnknownMapObjectIdError extends Error {
   final String objectType;
 
   /// The unknown maps object ID.
-  final MapsObjectId objectId;
+  final MapsObjectId<Object> objectId;
 
   /// The context where the error occurred.
   final String? context;
 
+  @override
   String toString() {
     if (context != null) {
       return 'Unknown $objectType ID "${objectId.value}" in $context';
     }
     return 'Unknown $objectType ID "${objectId.value}"';
+  }
+}
+
+/// Android specific settings for [GoogleMap].
+class AndroidGoogleMapsFlutter {
+  AndroidGoogleMapsFlutter._();
+
+  /// Whether to render [GoogleMap] with a [AndroidViewSurface] to build the Google Maps widget.
+  ///
+  /// This implementation uses hybrid composition to render the Google Maps
+  /// Widget on Android. This comes at the cost of some performance on Android
+  /// versions below 10. See
+  /// https://flutter.dev/docs/development/platform-integration/platform-views#performance for more
+  /// information.
+  ///
+  /// Defaults to false.
+  static bool get useAndroidViewSurface {
+    final GoogleMapsFlutterPlatform platform =
+        GoogleMapsFlutterPlatform.instance;
+    if (platform is MethodChannelGoogleMapsFlutter) {
+      return platform.useAndroidViewSurface;
+    }
+    return false;
+  }
+
+  /// Set whether to render [GoogleMap] with a [AndroidViewSurface] to build the Google Maps widget.
+  ///
+  /// This implementation uses hybrid composition to render the Google Maps
+  /// Widget on Android. This comes at the cost of some performance on Android
+  /// versions below 10. See
+  /// https://flutter.dev/docs/development/platform-integration/platform-views#performance for more
+  /// information.
+  ///
+  /// Defaults to false.
+  static set useAndroidViewSurface(bool useAndroidViewSurface) {
+    final GoogleMapsFlutterPlatform platform =
+        GoogleMapsFlutterPlatform.instance;
+    if (platform is MethodChannelGoogleMapsFlutter) {
+      platform.useAndroidViewSurface = useAndroidViewSurface;
+    }
   }
 }
 
@@ -61,6 +102,7 @@ class GoogleMap extends StatefulWidget {
     this.tiltGesturesEnabled = true,
     this.myLocationEnabled = false,
     this.myLocationButtonEnabled = true,
+    this.layoutDirection,
 
     /// If no padding is specified default padding will be 0.
     this.padding = const EdgeInsets.all(0),
@@ -99,6 +141,12 @@ class GoogleMap extends StatefulWidget {
 
   /// Type of map tiles to be rendered.
   final MapType mapType;
+
+  /// The layout direction to use for the embedded view.
+  ///
+  /// If this is null, the ambient [Directionality] is used instead. If there is
+  /// no ambient [Directionality], [TextDirection.ltr] is used.
+  final TextDirection? layoutDirection;
 
   /// Preferred bounds for the camera zoom level.
   ///
@@ -237,7 +285,7 @@ class GoogleMap extends StatefulWidget {
 }
 
 class _GoogleMapState extends State<GoogleMap> {
-  final _mapId = _nextMapCreationId++;
+  final int _mapId = _nextMapCreationId++;
 
   final Completer<GoogleMapController> _controller =
       Completer<GoogleMapController>();
@@ -250,9 +298,12 @@ class _GoogleMapState extends State<GoogleMap> {
 
   @override
   Widget build(BuildContext context) {
-    return GoogleMapsFlutterPlatform.instance.buildView(
+    return GoogleMapsFlutterPlatform.instance.buildViewWithTextDirection(
       _mapId,
       onPlatformViewCreated,
+      textDirection: widget.layoutDirection ??
+          Directionality.maybeOf(context) ??
+          TextDirection.ltr,
       initialCameraPosition: widget.initialCameraPosition,
       markers: widget.markers,
       polygons: widget.polygons,
@@ -274,9 +325,13 @@ class _GoogleMapState extends State<GoogleMap> {
   }
 
   @override
-  void dispose() async {
+  void dispose() {
+    _disposeController();
     super.dispose();
-    GoogleMapController controller = await _controller.future;
+  }
+
+  Future<void> _disposeController() async {
+    final GoogleMapController controller = await _controller.future;
     controller.dispose();
   }
 
@@ -291,7 +346,7 @@ class _GoogleMapState extends State<GoogleMap> {
     _updateTileOverlays();
   }
 
-  void _updateOptions() async {
+  Future<void> _updateOptions() async {
     final _GoogleMapOptions newOptions = _GoogleMapOptions.fromWidget(widget);
     final Map<String, dynamic> updates =
         _googleMapOptions.updatesMap(newOptions);
@@ -304,7 +359,7 @@ class _GoogleMapState extends State<GoogleMap> {
     _googleMapOptions = newOptions;
   }
 
-  void _updateMarkers() async {
+  Future<void> _updateMarkers() async {
     final GoogleMapController controller = await _controller.future;
     // ignore: unawaited_futures
     controller._updateMarkers(
@@ -312,7 +367,7 @@ class _GoogleMapState extends State<GoogleMap> {
     _markers = keyByMarkerId(widget.markers);
   }
 
-  void _updatePolygons() async {
+  Future<void> _updatePolygons() async {
     final GoogleMapController controller = await _controller.future;
     // ignore: unawaited_futures
     controller._updatePolygons(
@@ -320,7 +375,7 @@ class _GoogleMapState extends State<GoogleMap> {
     _polygons = keyByPolygonId(widget.polygons);
   }
 
-  void _updatePolylines() async {
+  Future<void> _updatePolylines() async {
     final GoogleMapController controller = await _controller.future;
     // ignore: unawaited_futures
     controller._updatePolylines(
@@ -328,7 +383,7 @@ class _GoogleMapState extends State<GoogleMap> {
     _polylines = keyByPolylineId(widget.polylines);
   }
 
-  void _updateCircles() async {
+  Future<void> _updateCircles() async {
     final GoogleMapController controller = await _controller.future;
     // ignore: unawaited_futures
     controller._updateCircles(
@@ -336,7 +391,7 @@ class _GoogleMapState extends State<GoogleMap> {
     _circles = keyByCircleId(widget.circles);
   }
 
-  void _updateTileOverlays() async {
+  Future<void> _updateTileOverlays() async {
     final GoogleMapController controller = await _controller.future;
     // ignore: unawaited_futures
     controller._updateTileOverlays(widget.tileOverlays);
@@ -365,6 +420,30 @@ class _GoogleMapState extends State<GoogleMap> {
     final VoidCallback? onTap = marker.onTap;
     if (onTap != null) {
       onTap();
+    }
+  }
+
+  void onMarkerDragStart(MarkerId markerId, LatLng position) {
+    assert(markerId != null);
+    final Marker? marker = _markers[markerId];
+    if (marker == null) {
+      throw UnknownMapObjectIdError('marker', markerId, 'onDragStart');
+    }
+    final ValueChanged<LatLng>? onDragStart = marker.onDragStart;
+    if (onDragStart != null) {
+      onDragStart(position);
+    }
+  }
+
+  void onMarkerDrag(MarkerId markerId, LatLng position) {
+    assert(markerId != null);
+    final Marker? marker = _markers[markerId];
+    if (marker == null) {
+      throw UnknownMapObjectIdError('marker', markerId, 'onDrag');
+    }
+    final ValueChanged<LatLng>? onDrag = marker.onDrag;
+    if (onDrag != null) {
+      onDrag(position);
     }
   }
 
