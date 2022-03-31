@@ -39,7 +39,7 @@ abstract class GoogleMapsFlutterPlatform extends PlatformInterface {
   /// Platform-specific plugins should set this with their own platform-specific
   /// class that extends [GoogleMapsFlutterPlatform] when they register themselves.
   static set instance(GoogleMapsFlutterPlatform instance) {
-    PlatformInterface.verifyToken(instance, _token);
+    PlatformInterface.verify(instance, _token);
     _instance = instance;
   }
 
@@ -301,6 +301,16 @@ abstract class GoogleMapsFlutterPlatform extends PlatformInterface {
   /// An [InfoWindow] has been tapped.
   Stream<InfoWindowTapEvent> onInfoWindowTap({required int mapId}) {
     throw UnimplementedError('onInfoWindowTap() has not been implemented.');
+  }
+
+  /// A [Marker] has been dragged to a different [LatLng] position.
+  Stream<MarkerDragStartEvent> onMarkerDragStart({required int mapId}) {
+    throw UnimplementedError('onMarkerDragEnd() has not been implemented.');
+  }
+
+  /// A [Marker] has been dragged to a different [LatLng] position.
+  Stream<MarkerDragEvent> onMarkerDrag({required int mapId}) {
+    throw UnimplementedError('onMarkerDragEnd() has not been implemented.');
   }
 
   /// A [Marker] has been dragged to a different [LatLng] position.

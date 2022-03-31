@@ -31,6 +31,7 @@ class GoogleSignInUserData {
     this.displayName,
     this.photoUrl,
     this.idToken,
+    this.serverAuthCode,
   });
 
   /// The display name of the signed in user.
@@ -66,20 +67,32 @@ class GoogleSignInUserData {
   /// data.
   String? idToken;
 
-  @override
-  int get hashCode =>
-      hashObjects(<String?>[displayName, email, id, photoUrl, idToken]);
+  /// Server auth code used to access Google Login
+  String? serverAuthCode;
 
   @override
+  // TODO(stuartmorgan): Make this class immutable in the next breaking change.
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => hashObjects(
+      <String?>[displayName, email, id, photoUrl, idToken, serverAuthCode]);
+
+  @override
+  // TODO(stuartmorgan): Make this class immutable in the next breaking change.
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(dynamic other) {
-    if (identical(this, other)) return true;
-    if (other is! GoogleSignInUserData) return false;
+    if (identical(this, other)) {
+      return true;
+    }
+    if (other is! GoogleSignInUserData) {
+      return false;
+    }
     final GoogleSignInUserData otherUserData = other;
     return otherUserData.displayName == displayName &&
         otherUserData.email == email &&
         otherUserData.id == id &&
         otherUserData.photoUrl == photoUrl &&
-        otherUserData.idToken == idToken;
+        otherUserData.idToken == idToken &&
+        otherUserData.serverAuthCode == serverAuthCode;
   }
 }
 
@@ -102,12 +115,20 @@ class GoogleSignInTokenData {
   String? serverAuthCode;
 
   @override
+  // TODO(stuartmorgan): Make this class immutable in the next breaking change.
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
   int get hashCode => hash3(idToken, accessToken, serverAuthCode);
 
   @override
+  // TODO(stuartmorgan): Make this class immutable in the next breaking change.
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
   bool operator ==(dynamic other) {
-    if (identical(this, other)) return true;
-    if (other is! GoogleSignInTokenData) return false;
+    if (identical(this, other)) {
+      return true;
+    }
+    if (other is! GoogleSignInTokenData) {
+      return false;
+    }
     final GoogleSignInTokenData otherTokenData = other;
     return otherTokenData.idToken == idToken &&
         otherTokenData.accessToken == accessToken &&

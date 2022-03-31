@@ -6,8 +6,8 @@
 
 import 'dart:async';
 import 'dart:math';
-import 'dart:ui';
 import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -15,7 +15,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'page.dart';
 
 class PlaceMarkerPage extends GoogleMapExampleAppPage {
-  PlaceMarkerPage() : super(const Icon(Icons.place), 'Place marker');
+  const PlaceMarkerPage() : super(const Icon(Icons.place), 'Place marker');
 
   @override
   Widget build(BuildContext context) {
@@ -30,16 +30,17 @@ class PlaceMarkerBody extends StatefulWidget {
   State<StatefulWidget> createState() => PlaceMarkerBodyState();
 }
 
-typedef Marker MarkerUpdateAction(Marker marker);
+typedef MarkerUpdateAction = Marker Function(Marker marker);
 
 class PlaceMarkerBodyState extends State<PlaceMarkerBody> {
   PlaceMarkerBodyState();
-  static final LatLng center = const LatLng(-33.86711, 151.1947171);
+  static const LatLng center = LatLng(-33.86711, 151.1947171);
 
   GoogleMapController? controller;
   Map<MarkerId, Marker> markers = <MarkerId, Marker>{};
   MarkerId? selectedMarker;
   int _markerIdCounter = 1;
+  LatLng? markerPosition;
 
   void _onMapCreated(GoogleMapController controller) {
     this.controller = controller;
@@ -67,13 +68,24 @@ class PlaceMarkerBodyState extends State<PlaceMarkerBody> {
           ),
         );
         markers[markerId] = newMarker;
+
+        markerPosition = null;
       });
     }
   }
 
-  void _onMarkerDragEnd(MarkerId markerId, LatLng newPosition) async {
+  Future<void> _onMarkerDrag(MarkerId markerId, LatLng newPosition) async {
+    setState(() {
+      markerPosition = newPosition;
+    });
+  }
+
+  Future<void> _onMarkerDragEnd(MarkerId markerId, LatLng newPosition) async {
     final Marker? tappedMarker = markers[markerId];
     if (tappedMarker != null) {
+      setState(() {
+        markerPosition = null;
+      });
       await showDialog<void>(
           context: context,
           builder: (BuildContext context) {
@@ -115,12 +127,9 @@ class PlaceMarkerBodyState extends State<PlaceMarkerBody> {
         center.longitude + cos(_markerIdCounter * pi / 6.0) / 20.0,
       ),
       infoWindow: InfoWindow(title: markerIdVal, snippet: '*'),
-      onTap: () {
-        _onMarkerTapped(markerId);
-      },
-      onDragEnd: (LatLng position) {
-        _onMarkerDragEnd(markerId, position);
-      },
+      onTap: () => _onMarkerTapped(markerId),
+      onDragEnd: (LatLng position) => _onMarkerDragEnd(markerId, position),
+      onDrag: (LatLng position) => _onMarkerDrag(markerId, position),
     );
 
     setState(() {
@@ -280,14 +289,12 @@ class PlaceMarkerBodyState extends State<PlaceMarkerBody> {
   @override
   Widget build(BuildContext context) {
     final MarkerId? selectedId = selectedMarker;
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        Center(
-          child: SizedBox(
-            width: 300.0,
-            height: 200.0,
+    return Stack(children: <Widget>[
+      Column(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Expanded(
             child: GoogleMap(
               onMapCreated: _onMapCreated,
               initialCameraPosition: const CameraPosition(
@@ -297,111 +304,116 @@ class PlaceMarkerBodyState extends State<PlaceMarkerBody> {
               markers: Set<Marker>.of(markers.values),
             ),
           ),
-        ),
-        Expanded(
-          child: SingleChildScrollView(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: <Widget>[
-                Row(
-                  children: <Widget>[
-                    Column(
-                      children: <Widget>[
-                        TextButton(
-                          child: const Text('add'),
-                          onPressed: _add,
-                        ),
-                        TextButton(
-                          child: const Text('remove'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _remove(selectedId),
-                        ),
-                        TextButton(
-                          child: const Text('change info'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _changeInfo(selectedId),
-                        ),
-                        TextButton(
-                          child: const Text('change info anchor'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _changeInfoAnchor(selectedId),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      children: <Widget>[
-                        TextButton(
-                          child: const Text('change alpha'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _changeAlpha(selectedId),
-                        ),
-                        TextButton(
-                          child: const Text('change anchor'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _changeAnchor(selectedId),
-                        ),
-                        TextButton(
-                          child: const Text('toggle draggable'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _toggleDraggable(selectedId),
-                        ),
-                        TextButton(
-                          child: const Text('toggle flat'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _toggleFlat(selectedId),
-                        ),
-                        TextButton(
-                          child: const Text('change position'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _changePosition(selectedId),
-                        ),
-                        TextButton(
-                          child: const Text('change rotation'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _changeRotation(selectedId),
-                        ),
-                        TextButton(
-                          child: const Text('toggle visible'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _toggleVisible(selectedId),
-                        ),
-                        TextButton(
-                          child: const Text('change zIndex'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () => _changeZIndex(selectedId),
-                        ),
-                        TextButton(
-                          child: const Text('set marker icon'),
-                          onPressed: selectedId == null
-                              ? null
-                              : () {
-                                  _getAssetIcon(context).then(
-                                    (BitmapDescriptor icon) {
-                                      _setMarkerIcon(selectedId, icon);
-                                    },
-                                  );
-                                },
-                        ),
-                      ],
-                    ),
-                  ],
-                )
-              ],
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: <Widget>[
+              TextButton(
+                child: const Text('Add'),
+                onPressed: _add,
+              ),
+              TextButton(
+                child: const Text('Remove'),
+                onPressed:
+                    selectedId == null ? null : () => _remove(selectedId),
+              ),
+            ],
+          ),
+          Wrap(
+            alignment: WrapAlignment.spaceEvenly,
+            children: <Widget>[
+              TextButton(
+                child: const Text('change info'),
+                onPressed:
+                    selectedId == null ? null : () => _changeInfo(selectedId),
+              ),
+              TextButton(
+                child: const Text('change info anchor'),
+                onPressed: selectedId == null
+                    ? null
+                    : () => _changeInfoAnchor(selectedId),
+              ),
+              TextButton(
+                child: const Text('change alpha'),
+                onPressed:
+                    selectedId == null ? null : () => _changeAlpha(selectedId),
+              ),
+              TextButton(
+                child: const Text('change anchor'),
+                onPressed:
+                    selectedId == null ? null : () => _changeAnchor(selectedId),
+              ),
+              TextButton(
+                child: const Text('toggle draggable'),
+                onPressed: selectedId == null
+                    ? null
+                    : () => _toggleDraggable(selectedId),
+              ),
+              TextButton(
+                child: const Text('toggle flat'),
+                onPressed:
+                    selectedId == null ? null : () => _toggleFlat(selectedId),
+              ),
+              TextButton(
+                child: const Text('change position'),
+                onPressed: selectedId == null
+                    ? null
+                    : () => _changePosition(selectedId),
+              ),
+              TextButton(
+                child: const Text('change rotation'),
+                onPressed: selectedId == null
+                    ? null
+                    : () => _changeRotation(selectedId),
+              ),
+              TextButton(
+                child: const Text('toggle visible'),
+                onPressed: selectedId == null
+                    ? null
+                    : () => _toggleVisible(selectedId),
+              ),
+              TextButton(
+                child: const Text('change zIndex'),
+                onPressed:
+                    selectedId == null ? null : () => _changeZIndex(selectedId),
+              ),
+              TextButton(
+                child: const Text('set marker icon'),
+                onPressed: selectedId == null
+                    ? null
+                    : () {
+                        _getAssetIcon(context).then(
+                          (BitmapDescriptor icon) {
+                            _setMarkerIcon(selectedId, icon);
+                          },
+                        );
+                      },
+              ),
+            ],
+          ),
+        ],
+      ),
+      Visibility(
+        visible: markerPosition != null,
+        child: Container(
+          color: Colors.white70,
+          height: 30,
+          padding: const EdgeInsets.only(left: 12, right: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisSize: MainAxisSize.max,
+            children: <Widget>[
+              if (markerPosition == null)
+                Container()
+              else
+                Expanded(child: Text('lat: ${markerPosition!.latitude}')),
+              if (markerPosition == null)
+                Container()
+              else
+                Expanded(child: Text('lng: ${markerPosition!.longitude}')),
+            ],
           ),
         ),
-      ],
-    );
+      ),
+    ]);
   }
 }

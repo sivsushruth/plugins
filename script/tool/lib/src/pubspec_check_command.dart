@@ -6,6 +6,7 @@ import 'package:file/file.dart';
 import 'package:git/git.dart';
 import 'package:platform/platform.dart';
 import 'package:pubspec_parse/pubspec_parse.dart';
+import 'package:yaml/yaml.dart';
 
 import 'common/core.dart';
 import 'common/package_looping_command.dart';
@@ -39,6 +40,7 @@ class PubspecCheckCommand extends PackageLoopingCommand {
     'flutter:',
     'dependencies:',
     'dev_dependencies:',
+    'false_secrets:',
   ];
 
   static const List<String> _majorPackageSections = <String>[
@@ -46,6 +48,7 @@ class PubspecCheckCommand extends PackageLoopingCommand {
     'dependencies:',
     'dev_dependencies:',
     'flutter:',
+    'false_secrets:',
   ];
 
   static const String _expectedIssueLinkFormat =
@@ -98,9 +101,17 @@ class PubspecCheckCommand extends PackageLoopingCommand {
     }
 
     if (isPlugin) {
-      final String? error = _checkForImplementsError(pubspec, package: package);
-      if (error != null) {
-        printError('$indentation$error');
+      final String? implementsError =
+          _checkForImplementsError(pubspec, package: package);
+      if (implementsError != null) {
+        printError('$indentation$implementsError');
+        passing = false;
+      }
+
+      final String? defaultPackageError =
+          _checkForDefaultPackageError(pubspec, package: package);
+      if (defaultPackageError != null) {
+        printError('$indentation$defaultPackageError');
         passing = false;
       }
     }
@@ -123,6 +134,18 @@ class PubspecCheckCommand extends PackageLoopingCommand {
             'search for open flutter/flutter bugs with the relevant label:\n'
             '${indentation * 2}$_expectedIssueLinkFormat<package label>');
         passing = false;
+      }
+
+      // Don't check descriptions for federated package components other than
+      // the app-facing package, since they are unlisted, and are expected to
+      // have short descriptions.
+      if (!package.isPlatformInterface && !package.isPlatformImplementation) {
+        final String? descriptionError =
+            _checkDescription(pubspec, package: package);
+        if (descriptionError != null) {
+          printError('$indentation$descriptionError');
+          passing = false;
+        }
       }
     }
 
@@ -163,7 +186,7 @@ class PubspecCheckCommand extends PackageLoopingCommand {
       errorMessages.add('Missing "repository"');
     } else {
       final String relativePackagePath =
-          path.relative(package.path, from: packagesDir.parent.path);
+          getRelativePosixPath(package.directory, from: packagesDir.parent);
       if (!pubspec.repository!.path.endsWith(relativePackagePath)) {
         errorMessages
             .add('The "repository" link should end with the package path.');
@@ -176,6 +199,28 @@ class PubspecCheckCommand extends PackageLoopingCommand {
     }
 
     return errorMessages;
+  }
+
+  // Validates the "description" field for a package, returning an error
+  // string if there are any issues.
+  String? _checkDescription(
+    Pubspec pubspec, {
+    required RepositoryPackage package,
+  }) {
+    final String? description = pubspec.description;
+    if (description == null) {
+      return 'Missing "description"';
+    }
+
+    if (description.length < 60) {
+      return '"description" is too short. pub.dev recommends package '
+          'descriptions of 60-180 characters.';
+    }
+    if (description.length > 180) {
+      return '"description" is too long. pub.dev recommends package '
+          'descriptions of 60-180 characters.';
+    }
+    return null;
   }
 
   bool _checkIssueLink(Pubspec pubspec) {
@@ -207,20 +252,57 @@ class PubspecCheckCommand extends PackageLoopingCommand {
     return null;
   }
 
+  // Validates any "default_package" entries a plugin, returning an error
+  // string if there are any issues.
+  //
+  // Should only be called on plugin packages.
+  String? _checkForDefaultPackageError(
+    Pubspec pubspec, {
+    required RepositoryPackage package,
+  }) {
+    final dynamic platformsEntry = pubspec.flutter!['plugin']!['platforms'];
+    if (platformsEntry == null) {
+      logWarning('Does not implement any platforms');
+      return null;
+    }
+    final YamlMap platforms = platformsEntry as YamlMap;
+    final String packageName = package.directory.basename;
+
+    // Validate that the default_package entries look correct (e.g., no typos).
+    final Set<String> defaultPackages = <String>{};
+    for (final MapEntry<dynamic, dynamic> platformEntry in platforms.entries) {
+      final String? defaultPackage =
+          platformEntry.value['default_package'] as String?;
+      if (defaultPackage != null) {
+        defaultPackages.add(defaultPackage);
+        if (!defaultPackage.startsWith('${packageName}_')) {
+          return '"$defaultPackage" is not an expected implementation name '
+              'for "$packageName"';
+        }
+      }
+    }
+
+    // Validate that all default_packages are also dependencies.
+    final Iterable<String> dependencies = pubspec.dependencies.keys;
+    final Iterable<String> missingPackages = defaultPackages
+        .where((String package) => !dependencies.contains(package));
+    if (missingPackages.isNotEmpty) {
+      return 'The following default_packages are missing '
+              'corresponding dependencies:\n  ' +
+          missingPackages.join('\n  ');
+    }
+
+    return null;
+  }
+
   // Returns true if [packageName] appears to be an implementation package
   // according to repository conventions.
   bool _isImplementationPackage(RepositoryPackage package) {
-    // An implementation package should be in a group folder...
-    final Directory parentDir = package.directory.parent;
-    if (parentDir.path == packagesDir.path) {
+    if (!package.isFederated) {
       return false;
     }
     final String packageName = package.directory.basename;
-    final String parentName = parentDir.basename;
-    // ... whose name is a prefix of the package name.
-    if (!packageName.startsWith(parentName)) {
-      return false;
-    }
+    final String parentName = package.directory.parent.basename;
     // A few known package names are not implementation packages; assume
     // anything else is. (This is done instead of listing known implementation
     // suffixes to allow for non-standard suffixes; e.g., to put several

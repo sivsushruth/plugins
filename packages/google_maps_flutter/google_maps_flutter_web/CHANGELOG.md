@@ -1,3 +1,11 @@
+## 0.3.2+1
+
+* Removes dependency on `meta`.
+
+## 0.3.2
+
+* Add `onDragStart` and `onDrag` to `Marker`
+
 ## 0.3.1
 
 * Fix the `getScreenCoordinate(LatLng)` method. [#80710](https://github.com/flutter/flutter/issues/80710)

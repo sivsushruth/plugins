@@ -6,9 +6,9 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:google_sign_in_platform_interface/google_sign_in_platform_interface.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_sign_in/testing.dart';
+import 'package:google_sign_in_platform_interface/google_sign_in_platform_interface.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -19,10 +19,11 @@ void main() {
     );
 
     const Map<String, String> kUserData = <String, String>{
-      "email": "john.doe@gmail.com",
-      "id": "8162538176523816253123",
-      "photoUrl": "https://lh5.googleusercontent.com/photo.jpg",
-      "displayName": "John Doe",
+      'email': 'john.doe@gmail.com',
+      'id': '8162538176523816253123',
+      'photoUrl': 'https://lh5.googleusercontent.com/photo.jpg',
+      'displayName': 'John Doe',
+      'serverAuthCode': '789'
     };
 
     const Map<String, dynamic> kDefaultResponses = <String, dynamic>{
@@ -83,7 +84,7 @@ void main() {
     });
 
     test('signIn prioritize clientId parameter when available', () async {
-      final fakeClientId = 'fakeClientId';
+      const String fakeClientId = 'fakeClientId';
       googleSignIn = GoogleSignIn(clientId: fakeClientId);
       await googleSignIn.signIn();
       expect(googleSignIn.currentUser, isNotNull);
@@ -268,14 +269,14 @@ void main() {
 
     test('signInSilently suppresses errors by default', () async {
       channel.setMockMethodCallHandler((MethodCall methodCall) {
-        throw "I am an error";
+        throw 'I am an error';
       });
       expect(await googleSignIn.signInSilently(), isNull); // should not throw
     });
 
     test('signInSilently forwards errors', () async {
       channel.setMockMethodCallHandler((MethodCall methodCall) {
-        throw "I am an error";
+        throw 'I am an error';
       });
       expect(googleSignIn.signInSilently(suppressErrors: false),
           throwsA(isInstanceOf<PlatformException>()));
@@ -303,7 +304,7 @@ void main() {
         if (methodCall.method == 'init') {
           initCount++;
           if (initCount == 1) {
-            throw "First init fails";
+            throw 'First init fails';
           }
         }
         return Future<dynamic>.value(responses[methodCall.method]);
@@ -350,7 +351,6 @@ void main() {
 
       expect(auth.accessToken, '456');
       expect(auth.idToken, '123');
-      expect(auth.serverAuthCode, '789');
       expect(
         log,
         <Matcher>[
@@ -364,7 +364,8 @@ void main() {
 
     test('requestScopes returns true once new scope is granted', () async {
       await googleSignIn.signIn();
-      final result = await googleSignIn.requestScopes(['testScope']);
+      final bool result =
+          await googleSignIn.requestScopes(<String>['testScope']);
 
       expect(result, isTrue);
       expect(
@@ -373,7 +374,7 @@ void main() {
           _isSignInMethodCall(),
           isMethodCall('signIn', arguments: null),
           isMethodCall('requestScopes', arguments: <String, dynamic>{
-            'scopes': ['testScope'],
+            'scopes': <String>['testScope'],
           }),
         ],
       );
@@ -382,11 +383,11 @@ void main() {
 
   group('GoogleSignIn with fake backend', () {
     const FakeUser kUserData = FakeUser(
-      id: "8162538176523816253123",
-      displayName: "John Doe",
-      email: "john.doe@gmail.com",
-      photoUrl: "https://lh5.googleusercontent.com/photo.jpg",
-    );
+        id: '8162538176523816253123',
+        displayName: 'John Doe',
+        email: 'john.doe@gmail.com',
+        photoUrl: 'https://lh5.googleusercontent.com/photo.jpg',
+        serverAuthCode: '789');
 
     late GoogleSignIn googleSignIn;
 
@@ -411,6 +412,7 @@ void main() {
       expect(user.email, equals(kUserData.email));
       expect(user.id, equals(kUserData.id));
       expect(user.photoUrl, equals(kUserData.photoUrl));
+      expect(user.serverAuthCode, equals(kUserData.serverAuthCode));
 
       await googleSignIn.disconnect();
       expect(googleSignIn.currentUser, isNull);
